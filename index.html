@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Customer Churn Analysis with SQL | Thinh Duy Do</title>
+<meta name="description" content="SQL analysis of customer churn: queries, results, what they show, and recommendations." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0b0f;
+    --panel: #15151c;
+    --panel-2: #1b1b24;
+    --line: #2a2a35;
+    --text: #f2f2f5;
+    --muted: #9a9aa8;
+    --accent: #a25bff;
+    --grad: linear-gradient(90deg, #7a4dff, #ff5fa2 60%, #ff8a3d);
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "Inter", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  h1, h2, h3 { font-family: "Archivo Black", "Inter", sans-serif; letter-spacing: -0.01em; line-height: 1.15; }
+  a { color: var(--accent); }
+  .container { width: min(860px, 92%); margin: 0 auto; }
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(11, 11, 15, .85); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  header.top .container { display: flex; justify-content: space-between; align-items: center; height: 56px; }
+  header.top a { text-decoration: none; color: var(--muted); font-size: .9rem; }
+  header.top a:hover { color: var(--text); }
+  .logo { font-family: "Archivo Black", sans-serif; color: var(--text) !important; }
+
+  .hero { padding: 80px 0 48px; }
+  .eyebrow { font-size: .8rem; text-transform: uppercase; letter-spacing: .18em; color: var(--muted); }
+  .hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 14px 0 18px;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { color: #d4d4dc; max-width: 680px; }
+  .meta { color: var(--muted); font-size: .9rem; margin-top: 18px; }
+
+  .toc { margin: 8px 0 24px; padding: 24px 28px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .toc h2 { font-size: 1rem; margin-bottom: 12px; }
+  .toc ul { list-style: none; }
+  .toc li + li { margin-top: 8px; }
+  .toc a { text-decoration: none; color: #d4d4dc; }
+  .toc a:hover { color: var(--text); }
+
+  section.q { padding: 56px 0; border-top: 1px solid var(--line); }
+  .q-num { font-family: "Archivo Black", sans-serif; font-size: .9rem; color: var(--accent); letter-spacing: .08em; }
+  .q h2 { font-size: clamp(1.4rem, 3.4vw, 1.9rem); margin: 8px 0 24px; }
+  .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); margin: 28px 0 10px; }
+  .note { color: var(--muted); font-size: .9rem; margin-top: 12px; }
+  pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px; overflow-x: auto;
+  }
+  code { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: .88rem; color: #e8e8ef; white-space: pre; }
+  table { border-collapse: collapse; width: 100%; max-width: 620px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: .95rem; }
+  th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+  td.num { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .learn { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 14px; padding: 18px 22px; color: #d4d4dc; }
+  .learn p + p { margin-top: 10px; }
+
+  .summary { padding: 56px 0 96px; border-top: 1px solid var(--line); }
+  .summary h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 8px 0 24px; }
+  .summary h3 { font-size: 1.15rem; margin: 36px 0 14px; }
+  .summary ol { padding-left: 22px; color: #d4d4dc; }
+  .summary li + li { margin-top: 10px; }
+
+  footer { padding: 28px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+  footer .container { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 600px) {
+    .toc { padding: 20px; }
+    pre { font-size: .8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="logo" href="#top">TDD<span style="color:var(--accent)">.</span></a>
+    <a href="https://davisdowork.github.io/">← Portfolio</a>
+  </div>
+</header>
+
+<div class="container hero" id="top">
+  <p class="eyebrow">SQL · Customer analytics</p>
+  <h1>Customer Churn Analysis</h1>
+  <p>I loaded a customer dataset into SQLite, cleaned it, and wrote SQL queries to find which customer groups churn most. Each question below shows the query, the result, and what I learned.</p>
+  <p class="meta">Table: <code>customers</code> · Tools: SQL, Python (pandas, sqlite3)</p>
+</div>
+
+<div class="container">
+  <nav class="toc">
+    <h2>Questions</h2>
+    <ul>
+      <li><a href="#q1">1. What is the overall customer churn rate?</a></li>
+      <li><a href="#q2">2. How does churn vary by subscription type?</a></li>
+      <li><a href="#q3">3. Is there any correlation between age and customer churn?</a></li>
+      <li><a href="#q4">4. What is the typical tenure for churned customers?</a></li>
+      <li><a href="#q5">5. Is there any difference in churn rate between male and female customers?</a></li>
+      <li><a href="#q6">6. Is there any difference in churn rate and support calls?</a></li>
+      <li><a href="#insights">Insights</a></li>
+      <li><a href="#recommendations">Recommendations</a></li>
+    </ul>
+  </nav>
+</div>
+
+<div class="container">
+
+  <section class="q" id="q1">
+    <p class="q-num">Q1</p>
+    <h2>What is the overall customer churn rate?</h2>
+
+    <p class="label">Query</p>
+<pre><code>SELECT
+    COUNT(*) AS total_customers,
+    SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) AS churned_customers,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS ChurnRate
+FROM customers;</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>total_customers</th><th>churned_customers</th><th>ChurnRate (%)</th></tr></thead>
+      <tbody><tr><td class="num">64374</td><td class="num">30493</td><td class="num">47.37</td></tr></tbody>
+    </table>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>Almost half of the customers in the dataset churned (47.37%). That is a high rate, so retention is a major business problem, not an edge case.</p>
+    </div>
+  </section>
+
+  <section class="q" id="q2">
+    <p class="q-num">Q2</p>
+    <h2>How does churn vary by subscription type?</h2>
+
+    <p class="label">Query</p>
+<pre><code>SELECT
+    "Subscription Type",
+    COUNT(*) AS TotalCustomers,
+    SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) AS ChurnedCustomers,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS ChurnRate
+FROM customers
+GROUP BY "Subscription Type";</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>Subscription Type</th><th>TotalCustomers</th><th>ChurnedCustomers</th><th>ChurnRate (%)</th></tr></thead>
+      <tbody>
+        <tr><td>Basic</td><td class="num">21451</td><td class="num">10356</td><td class="num">48.28</td></tr>
+        <tr><td>Premium</td><td class="num">21421</td><td class="num">9960</td><td class="num">46.49</td></tr>
+        <tr><td>Standard</td><td class="num">21502</td><td class="num">10177</td><td class="num">47.33</td></tr>
+      </tbody>
+    </table>
+    <p class="note">The notebook's version divided by an integer, so it showed 48.0, 46.0, and 47.0. The values above use 100.0 to keep the decimals.</p>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>Churn is similar across subscription types, between 46% and 48%. Subscription type alone does not explain who leaves.</p>
+    </div>
+  </section>
+
+  <section class="q" id="q3">
+    <p class="q-num">Q3</p>
+    <h2>Is there any correlation between age and customer churn?</h2>
+
+    <p class="label">Query</p>
+<pre><code>SELECT
+    AgeGroup,
+    COUNT(*) AS TotalCustomer,
+    SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) AS CustomerChurn,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS ChurnRate
+FROM customers
+GROUP BY AgeGroup;</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>AgeGroup</th><th>TotalCustomer</th><th>CustomerChurn</th><th>ChurnRate (%)</th></tr></thead>
+      <tbody>
+        <tr><td>18-24</td><td class="num">8995</td><td class="num">4045</td><td class="num">44.97</td></tr>
+        <tr><td>25-34</td><td class="num">13099</td><td class="num">5823</td><td class="num">44.46</td></tr>
+        <tr><td>35-44</td><td class="num">13153</td><td class="num">5852</td><td class="num">44.49</td></tr>
+        <tr><td>45-54</td><td class="num">13514</td><td class="num">6541</td><td class="num">48.41</td></tr>
+        <tr><td>55-65</td><td class="num">15613</td><td class="num">8232</td><td class="num">52.72</td></tr>
+      </tbody>
+    </table>
+    <p class="note">The notebook's version showed 44.0, 44.0, 44.0, 48.0, and 52.0 because of integer division. The values above are recomputed with decimals.</p>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>Churn rises with age. The three youngest groups are close to 44–45%, while customers aged 45–54 churn at 48.41% and those aged 55–65 churn at 52.72%.</p>
+    </div>
+  </section>
+
+  <section class="q" id="q4">
+    <p class="q-num">Q4</p>
+    <h2>What is the typical tenure for churned customers?</h2>
+
+    <p class="label">Query</p>
+<pre><code>SELECT
+    TenureRange,
+    COUNT(*) AS Total,
+    SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) AS ChurnedCustomers,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS ChurnRate
+FROM customers
+GROUP BY TenureRange
+ORDER BY MIN(Tenure);</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>TenureRange</th><th>Total</th><th>ChurnedCustomers</th><th>ChurnRate (%)</th></tr></thead>
+      <tbody>
+        <tr><td>1 year</td><td class="num">11360</td><td class="num">3616</td><td class="num">31.83</td></tr>
+        <tr><td>2 year</td><td class="num">11287</td><td class="num">3546</td><td class="num">31.42</td></tr>
+        <tr><td>3 year</td><td class="num">13764</td><td class="num">7664</td><td class="num">55.68</td></tr>
+        <tr><td>4 year</td><td class="num">13968</td><td class="num">7877</td><td class="num">56.39</td></tr>
+        <tr><td>5 year</td><td class="num">13995</td><td class="num">7790</td><td class="num">55.66</td></tr>
+      </tbody>
+    </table>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>Customers with 1 or 2 years of tenure churn at about 31%. From year 3 onward the rate jumps to about 56%, and it stays there through year 5.</p>
+      <p>The jump happens between the second and third year, which suggests a point in the customer lifecycle where something changes, such as a contract renewal or a price change. I would check this before drawing a conclusion.</p>
+    </div>
+  </section>
+
+  <section class="q" id="q5">
+    <p class="q-num">Q5</p>
+    <h2>Is there any difference in churn rate between male and female customers?</h2>
+
+    <p class="label">Query</p>
+<pre><code>SELECT
+    Gender,
+    COUNT(*) AS TotalCustomer,
+    SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) AS CustomerChurn,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS Churnrate
+FROM customers
+GROUP BY Gender;</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>Gender</th><th>TotalCustomer</th><th>CustomerChurn</th><th>Churnrate (%)</th></tr></thead>
+      <tbody>
+        <tr><td>Female</td><td class="num">34353</td><td class="num">18911</td><td class="num">55.05</td></tr>
+        <tr><td>Male</td><td class="num">30021</td><td class="num">11582</td><td class="num">38.58</td></tr>
+      </tbody>
+    </table>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>There is a large gap by gender. Female customers churn at 55.05%, compared with 38.58% for male customers, about 16 percentage points higher.</p>
+    </div>
+  </section>
+
+  <section class="q" id="q6">
+    <p class="q-num">Q6</p>
+    <h2>Is there any difference in churn rate and support calls?</h2>
+
+    <p class="label">Query</p>
+<pre><code>ALTER TABLE customers
+ADD COLUMN SupportCallGroup VARCHAR(10);
+
+UPDATE customers
+SET SupportCallGroup = CASE
+    WHEN "Support Calls" = 0 THEN '0'
+    WHEN "Support Calls" BETWEEN 1 AND 3 THEN '1-3'
+    WHEN "Support Calls" BETWEEN 4 AND 6 THEN '4-6'
+    WHEN "Support Calls" BETWEEN 7 AND 9 THEN '7-9'
+    ELSE '10+'
+END;
+
+SELECT
+    SupportCallGroup,
+    COUNT(*) AS Total,
+    ROUND(SUM(CASE WHEN CustomerStatus = 'Churned' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS ChurnRate
+FROM customers
+GROUP BY SupportCallGroup
+ORDER BY MIN("Support Calls");</code></pre>
+
+    <p class="label">Result</p>
+    <table>
+      <thead><tr><th>SupportCallGroup</th><th>Total</th><th>ChurnRate (%)</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td class="num">4967</td><td class="num">24.22</td></tr>
+        <tr><td>1-3</td><td class="num">14464</td><td class="num">23.61</td></tr>
+        <tr><td>4-6</td><td class="num">18444</td><td class="num">52.53</td></tr>
+        <tr><td>7-9</td><td class="num">19912</td><td class="num">61.21</td></tr>
+        <tr><td>10+</td><td class="num">6587</td><td class="num">60.70</td></tr>
+      </tbody>
+    </table>
+
+    <p class="label">What I learned</p>
+    <div class="learn">
+      <p>Churn goes up sharply once customers make more than three support calls. Customers with 0–3 calls churn at about 24%, and customers with 4 or more calls churn at 52–61%.</p>
+      <p>Support calls may be a warning sign. Frequent calls could mean unresolved problems, so they would make a useful early-warning signal for a retention team.</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="container">
+  <section class="summary" id="insights">
+    <p class="eyebrow">Summary</p>
+    <h2>Insights</h2>
+    <ol>
+      <li>Overall, 47.37% of customers churned.</li>
+      <li>Churn is similar across subscription types: basic 48.28%, standard 47.33%, and premium 46.49%.</li>
+      <li>Churn rises with age. Customers aged 18–44 churn at about 44–45%, 45–54 at 48.41%, and 55–65 at 52.72%.</li>
+      <li>Customers with 1 or 2 years of tenure churn at about 31%, while customers with 3 to 5 years churn at about 56%. Churn rises between years 2 and 3 and stays high after that.</li>
+      <li>Female customers churn at 55.05%, compared with 38.58% for male customers.</li>
+      <li>Churn is much higher for customers who make 4 or more support calls (52–61%) than for those who make 0–3 calls (about 24%).</li>
+    </ol>
+
+    <h3 id="recommendations">Recommendations</h3>
+    <ol>
+      <li>Investigate why churn is highest among customers aged 45 and older (52.72% for ages 55–65), and what younger customers are looking for in the service.</li>
+      <li>Investigate what happens between the second and third year of tenure, since churn roughly doubles after year 2.</li>
+      <li>Treat customers with 4 or more support calls as an at-risk group and follow up on their unresolved issues.</li>
+      <li>Look into what drives the gap between female (55.05%) and male (38.58%) churn before building targeted retention offers.</li>
+    </ol>
+  </section>
+</div>
+
+<footer>
+  <div class="container">
+    <span>© Thinh Duy Do</span>
+    <span>SQL analysis · Built with HTML and CSS</span>
+  </div>
+</footer>
+
+</body>
+</html>
